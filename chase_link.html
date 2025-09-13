@@ -1,0 +1,34 @@
+<!doctype html>
+<html>
+<head><meta charset="utf-8"><title>Plaid Link - Chase</title></head>
+<body>
+  <button id="open">Connect JPMorgan Chase</button>
+  <pre id="out" style="white-space:pre-wrap"></pre>
+
+  <script src="https://cdn.plaid.com/link/v2/stable/link-initialize.js"></script>
+  <script>
+    // Paste the NEW Chase link token:
+    const LINK_TOKEN = "link-production-18ec0e99-2ac9-4d26-b78d-6c9ecc6b99e1";
+
+    // Important for OAuth banks like Chase:
+    const receivedRedirectUri = window.location.href;
+
+    const out = document.getElementById('out');
+    const handler = Plaid.create({
+      token: LINK_TOKEN,
+      receivedRedirectUri, // required for OAuth completion
+      onSuccess(public_token, metadata) {
+        out.textContent =
+          "public_token: " + public_token +
+          "\n\nmetadata:\n" + JSON.stringify(metadata, null, 2) +
+          "\n\nCopy the public_token and run the exchange curl.";
+      },
+      onExit(err, meta) {
+        if (err) out.textContent = "Exit: " + err.error_message;
+      }
+    });
+
+    document.getElementById('open').onclick = () => handler.open();
+  </script>
+</body>
+</html>
