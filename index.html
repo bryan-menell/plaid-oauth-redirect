@@ -1,7 +1,50 @@
-<!DOCTYPE html>
+<!doctype html>
 <html>
-  <head><title>Plaid OAuth Redirect</title></head>
-  <body>
-    OAuth redirect successful. You can close this window.
-  </body>
+<head><meta charset="utf-8"><title>Plaid Link - Chase OAuth</title></head>
+<body>
+  <button id="open">Connect JPMorgan Chase</button>
+  <pre id="out" style="white-space:pre-wrap"></pre>
+
+  <script src="https://cdn.plaid.com/link/v2/stable/link-initialize.js"></script>
+  <script>
+    // IMPORTANT: use the MOST RECENT link token you created with
+    // redirect_uri = "https://bryan-menell.github.io/plaid-oauth-redirect/"
+    const LINK_TOKEN = "link-production-a15cc320-f82a-4b8f-bf46-0f9fcbbd986e";
+
+    const out = document.getElementById('out');
+    const params = new URLSearchParams(window.location.search);
+    const isOAuthReturn = params.has('oauth_state_id');
+
+    function log(msg) {
+      console.log(msg);
+      out.textContent += (out.textContent ? "\n" : "") + msg;
+    }
+
+    // Base config
+    const cfg = { token: LINK_TOKEN };
+
+    // If Plaid/Chase sent us back here (the real OAuth return), they should append ?oauth_state_id=...
+    // Then we MUST pass the full URL back to Plaid.
+    if (isOAuthReturn) {
+      cfg.receivedRedirectUri = window.location.href;
+      log("Detected OAuth return, completing Link…");
+    } else {
+      log("Click the button to start Chase…");
+    }
+
+    const handler = Plaid.create({
+      ...cfg,
+      onSuccess(public_token, metadata) {
+        log("public_token: " + public_token +
+            "\n\nmetadata:\n" + JSON.stringify(metadata, null, 2) +
+            "\n\nNow run item/public_token/exchange with this public_token.");
+      },
+      onExit(err) {
+        if (err) log("Exit: " + (err.error_message || JSON.stringify(err)));
+      }
+    });
+
+    document.getElementById('open').onclick = () => handler.open();
+  </script>
+</body>
 </html>
