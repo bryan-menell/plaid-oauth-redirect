@@ -7,28 +7,44 @@
 
   <script src="https://cdn.plaid.com/link/v2/stable/link-initialize.js"></script>
   <script>
-    // Paste the NEW Chase link token:
+    // paste the NEW token from step 2
     const LINK_TOKEN = "link-production-ece83f0e-0290-4641-8155-af6eada4da6e";
 
-    // Important for OAuth banks like Chase:
-    const receivedRedirectUri = window.location.href;
-
     const out = document.getElementById('out');
+
+    function log(msg) {
+      console.log(msg);
+      out.textContent += (out.textContent ? "\n" : "") + msg;
+    }
+
+    // are we on the OAuth return?
+    const params = new URLSearchParams(window.location.search);
+    const isOAuthReturn = params.has('oauth_state_id');
+
+    const config = { token: LINK_TOKEN };
+    if (isOAuthReturn) {
+      // ONLY on return
+      config.receivedRedirectUri = window.location.href;
+      log("Detected OAuth return, finishing Link…");
+    } else {
+      log("Click the button to start Chase…");
+    }
+
     const handler = Plaid.create({
-      token: LINK_TOKEN,
-      receivedRedirectUri, // required for OAuth completion
+      ...config,
       onSuccess(public_token, metadata) {
-        out.textContent =
-          "public_token: " + public_token +
-          "\n\nmetadata:\n" + JSON.stringify(metadata, null, 2) +
-          "\n\nCopy the public_token and run the exchange curl.";
+        log("public_token: " + public_token +
+            "\n\nmetadata:\n" + JSON.stringify(metadata, null, 2) +
+            "\n\nRun the public_token exchange next.");
       },
-      onExit(err, meta) {
-        if (err) out.textContent = "Exit: " + err.error_message;
+      onExit(err) {
+        if (err) log("Exit: " + (err.error_message || JSON.stringify(err)));
       }
     });
 
-    document.getElementById('open').onclick = () => handler.open();
+    document.getElementById('open').onclick = () => {
+      handler.open();
+    };
   </script>
 </body>
 </html>
