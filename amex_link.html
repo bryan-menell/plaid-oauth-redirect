@@ -1,0 +1,137 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Plaid Link — American Express</title>
+
+  <!-- Plaid Link -->
+  <script src="https://cdn.plaid.com/link/v2/stable/link-initialize.js"></script>
+
+  <style>
+    body { font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif; margin: 24px; line-height: 1.35; }
+    .card { max-width: 840px; padding: 16px; border: 1px solid #ddd; border-radius: 10px; }
+    .row { display: flex; gap: 12px; flex-wrap: wrap; align-items: center; }
+    input, textarea { width: 100%; padding: 10px; font-size: 14px; }
+    button { padding: 10px 14px; font-size: 14px; cursor: pointer; }
+    .muted { color: #666; font-size: 13px; }
+    .ok { color: #0a7; font-weight: 600; }
+    .err { color: #b00; font-weight: 600; }
+    pre { background: #f7f7f7; padding: 12px; border-radius: 8px; overflow: auto; }
+    code { font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace; }
+  </style>
+</head>
+
+<body>
+  <div class="card">
+    <h2>Plaid Link — American Express</h2>
+    <p class="muted">
+      This page launches Plaid Link using a <b>Link token</b> you generated in Terminal.
+      It prints the <b>public_token</b> when you finish, which you then exchange for an access token using
+      <code>/item/public_token/exchange</code>.
+    </p>
+
+    <h3>1) Paste Link token</h3>
+    <p class="muted">
+      Paste the <code>link-production-...</code> token you created (update mode, account selection enabled).
+    </p>
+    <input id="linkToken" placeholder="link-production-..." />
+
+    <div style="height: 12px;"></div>
+
+    <div class="row">
+      <button id="btnConnect" disabled>Connect American Express</button>
+      <span id="status" class="muted">Paste a link token to enable.</span>
+    </div>
+
+    <hr style="margin: 18px 0;" />
+
+    <h3>2) Result</h3>
+    <p class="muted">
+      After Link finishes, copy the <b>public_token</b> below and run your existing
+      <code>/item/public_token/exchange</code> curl command.
+    </p>
+
+    <div id="result"></div>
+  </div>
+
+<script>
+  const tokenInput = document.getElementById('linkToken');
+  const btn = document.getElementById('btnConnect');
+  const statusEl = document.getElementById('status');
+  const resultEl = document.getElementById('result');
+
+  function setStatus(msg, cls) {
+    statusEl.className = cls || 'muted';
+    statusEl.textContent = msg;
+  }
+
+  function renderResult(publicToken, metadata) {
+    const safeMeta = JSON.stringify(metadata || {}, null, 2);
+    resultEl.innerHTML = `
+      <p class="ok">Success. Copy your public_token:</p>
+      <pre><code>${publicToken}</code></pre>
+      <p class="muted">Metadata (for troubleshooting):</p>
+      <pre><code>${safeMeta}</code></pre>
+    `;
+  }
+
+  function renderError(err) {
+    resultEl.innerHTML = `
+      <p class="err">Link error:</p>
+      <pre><code>${JSON.stringify(err, null, 2)}</code></pre>
+    `;
+  }
+
+  function buildHandler(linkToken) {
+    // Destroy old handler if user replaces token
+    if (window.__plaidHandler && window.__plaidHandler.destroy) {
+      try { window.__plaidHandler.destroy(); } catch (e) {}
+    }
+
+    window.__plaidHandler = Plaid.create({
+      token: linkToken,
+      onLoad: function() {
+        setStatus('Plaid Link is ready.', 'ok');
+      },
+      onSuccess: function(public_token, metadata) {
+        setStatus('Link completed. You have a public_token.', 'ok');
+        renderResult(public_token, metadata);
+      },
+      onExit: function(err, metadata) {
+        if (err) {
+          setStatus('Exited with error.', 'err');
+          renderError({ err, metadata });
+        } else {
+          setStatus('Exited Link (no error).', 'muted');
+          resultEl.innerHTML = `<p class="muted">Exited Link. No public_token generated.</p>`;
+        }
+      },
+      onEvent: function(eventName, metadata) {
+        // Optional: uncomment for debugging
+        // console.log('EVENT', eventName, metadata);
+      }
+    });
+
+    return window.__plaidHandler;
+  }
+
+  function enableIfToken() {
+    const t = tokenInput.value.trim();
+    const ok = t.startsWith('link-');
+    btn.disabled = !ok;
+    setStatus(ok ? 'Ready. Click Connect.' : 'Paste a link token to enable.', ok ? 'ok' : 'muted');
+  }
+
+  tokenInput.addEventListener('input', enableIfToken);
+
+  btn.addEventListener('click', () => {
+    const t = tokenInput.value.trim();
+    if (!t.startsWith('link-')) return;
+    setStatus('Opening Plaid Link...', 'muted');
+    const handler = buildHandler(t);
+    handler.open();
+  });
+</script>
+</body>
+</html>
